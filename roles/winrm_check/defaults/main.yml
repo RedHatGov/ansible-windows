@@ -1,0 +1,7 @@
+---
+# defaults file for winrm_check
+
+ansible_winrm_port: 5985
+ansible_winrm_scheme: http
+
+...

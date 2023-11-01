@@ -1,0 +1,58 @@
+---
+# tasks file for winrm_check
+
+- name: check to see if the winrm python module is present
+  community.general.python_requirements_info:
+    dependencies:
+      - pywinrm>=0.4.3
+  delegate_to: localhost
+  register: winrm_module
+  run_once: true
+
+- name: drop out if pywinrm is missing
+  ansible.builtin.fail:
+    msg: pywinrm >= 0.4.3 is required on the host running winrm modules
+  when: winrm_module.not_found is contains('pywinrm') or winrm_module.mismatched.pywinrm is defined
+  run_once: true
+
+- name: check to see if winrm https is listening
+  ansible.builtin.wait_for:
+    host: "{{ inventory_hostname }}"
+    port: 5986
+    timeout: 5
+  delegate_to: localhost
+  register: https_result
+  ignore_errors: true
+
+- name: check to see if winrm http is listening
+  ansible.builtin.wait_for:
+    host: "{{ inventory_hostname }}"
+    port: 5985
+    timeout: 5
+  delegate_to: localhost
+  register: http_result
+  ignore_errors: true
+
+- name: set service status data
+  set_fact:
+     http: "{{ http_result.failed | ternary(false, true) }}"
+     https: "{{ https_result.failed | ternary(false, true) }}"
+
+- name: make sure that winrm is listening on http or https
+  fail:
+    msg: winrm must be listening on http or https
+  when: http_result.failed and https_result.failed
+
+- name: set winrm connection type for http
+  set_fact:
+    ansible_winrm_port: 5985
+    ansible_winrm_scheme: http
+  when: http | bool
+
+- name: set winrm connection type for https
+  set_fact:
+    ansible_winrm_port: 5986
+    ansible_winrm_scheme: https
+  when: https | bool
+
+...
