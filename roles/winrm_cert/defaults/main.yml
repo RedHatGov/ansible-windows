@@ -1,0 +1,4 @@
+---
+# defaults file for winrm_cert
+
+winrm_cert_selfsigned: true

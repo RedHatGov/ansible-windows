@@ -1,0 +1,107 @@
+---
+# tasks file for winrm_cert
+
+- name: import non-self-signed certificate
+  block:
+
+  - name: Get information on public key
+    ansible.builtin.command:
+      cmd: "openssl x509 -in {{ winrm_certfile }} -fingerprint -noout"
+    delegate_to: localhost
+    run_once: true
+    register: result
+
+  - name: Dump information
+    ansible.builtin.debug:
+      var: result
+
+  - set_fact:
+      winrm_certdir: "{{ winrm_certfile | dirname }}"
+      winrm_certfilename: "{{ winrm_certfile | basename }}"
+      winrm_certfile_thumbprint: "{{ result.stdout_lines[0] | regex_replace (':','') | regex_replace ('^.*=', '') }}"
+
+  - debug:
+      msg: "{{ winrm_certfile }} SHA1 thumbprint is {{ winrm_certfile_thumbprint }}"
+
+  - name: create temporary script directory
+    ansible.windows.win_tempfile:
+      state: directory
+      suffix: ansible
+    register: tempdir
+
+  - debug:
+      var: tempdir
+
+  - name: copy winrm ssl certificate
+    ansible.windows.win_copy:
+      src: "{{ winrm_certfile }}"
+      dest: "{{ tempdir.path }}/{{ winrm_certfilename }}"
+
+  - name: Import a certificate
+    ansible.windows.win_certificate_store:
+      path: "{{ tempdir.path }}/{{ winrm_certfilename }}"
+      key_storage: machine
+      store_name: My
+      state: present
+    register: cert_import
+
+  - debug:
+      var: cert_import
+
+  - name: check certificate info in store
+    community.windows.win_certificate_info:
+      thumbprint: "{{ winrm_certfile_thumbprint }}"
+    register: result
+
+  - debug:
+      var: result
+
+  - name: create https listener for winrm with certificate
+    ansible.windows.win_powershell:
+      script: |
+        $fqdn = "{{ inventory_hostname }}"
+        $thumbprint = "{{ winrm_certfile_thumbprint }}"
+        winrm create winrm/config/Listener?Address=*+Transport=HTTPS "@{Hostname=`"$fqdn`"; CertificateThumbprint=`"$thumbprint`"}"
+    register: result
+
+  - debug:
+      var: result.output
+
+  - name: remove directory structure
+    ansible.windows.win_file:
+      path: "{{ tempdir.path }}"
+      state: absent
+
+  when: winrm_cert_selfsigned is false and not https | bool
+
+- name: create https listener for winrm with self-signed certificate
+  block:
+
+  - name: create temporary script directory
+    ansible.windows.win_tempfile:
+      state: directory
+      suffix: ansible
+    register: tempdir
+
+  - name: Download ConfigureRemotingForAnsible.ps1 to specified path
+    ansible.windows.win_get_url:
+      url: 'https://github.com/ansible/ansible-documentation/raw/devel/examples/scripts/ConfigureRemotingForAnsible.ps1'
+      dest: "{{ tempdir.path }}/ConfigureRemotingForAnsible.ps1"
+
+  - name: setup windows host for winrm
+    ansible.windows.win_powershell:
+      chdir: "{{ tempdir.path }}"
+      script: '.\ConfigureRemotingForAnsible.ps1 -Verbose'
+    register: result
+
+  - debug:
+      var: result.verbose
+
+  - name: remove directory structure
+    ansible.windows.win_file:
+      path: "{{ tempdir.path }}"
+      state: absent
+
+  when: winrm_cert_selfsigned is true and not https | bool
+
+...

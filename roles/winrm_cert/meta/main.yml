@@ -1,0 +1,25 @@
+galaxy_info:
+  author: Alexander Jacocks
+  description: This role configures winrm https listeners. It can either create and use a self-signed certificate, or one specified by the user.
+  company: Red Hat
+
+  license: GPL-3.0-or-later
+
+  min_ansible_version: 2.1
+
+  platforms:
+  - name: Fedora
+    versions:
+    - 37
+    - 28
+  - name: RHEL
+    versions:
+    - 8
+    - 9
+
+  galaxy_tags:
+  - winrm
+  - certificate
+  - listener
+
+dependencies: []
