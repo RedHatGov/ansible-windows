@@ -1,0 +1,57 @@
+---
+
+- hosts: localhost
+  gather_facts: true
+
+- hosts: windows
+  gather_facts: false
+
+  roles:
+  - winrm_check
+  - winrm_cert
+  - winrm_check
+
+  tasks:
+
+  - name: disable winrm http if https is enabled too
+    ansible.windows.win_powershell:
+      script: |
+        winrm delete winrm/config/Listener?Address=*+Transport=HTTP
+    when: http | bool and https | bool
+
+###############################################################################
+  - name: user and group management
+#-----------------------------------------------------------------------------#
+    block:
+    - name: create new local groups
+      win_group:
+        name: "{{ item.key }}"
+        description: "{{ item.value.desc }}"
+        state: present
+      loop: "{{ lookup('dict', win_local_groups) }}"
+  
+    - name: add local user(s)
+      win_user:
+        name: "{{ item.key }}"
+        fullname: "{{ item.value.fullname }}"
+        password: "{{ item.value.password }}"
+        state: present
+        groups: "{{ item.value.groups }}"
+      loop: "{{ lookup('dict', win_local_users) }}"
+      no_log: true
+  
+    - name: remove local user(s)
+      win_user:
+        name: "{{ item.key }}"
+        state: absent
+      loop: "{{ lookup('dict', win_local_users) }}"
+      no_log: true
+  
+    - name: remove local groups
+      win_group:
+        name: "{{ item.key }}"
+        state: absent
+      loop: "{{ lookup('dict', win_local_groups) }}"
+###############################################################################
+
+...

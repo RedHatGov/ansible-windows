@@ -8,7 +8,7 @@
     ansible.builtin.command:
       cmd: "openssl x509 -in {{ winrm_certfile }} -fingerprint -noout"
     delegate_to: localhost
-    run_once: true
+#    run_once: true
     register: result
 
   - name: Dump information

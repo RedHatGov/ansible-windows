@@ -1,0 +1,12 @@
+**/*.crt
+**/*.json
+**/*.log
+**/*.pem
+**/*.pfx
+**/*.swo
+**/*.swp
+group_vars/all.yml
+group_vars/windows.yml
+host_vars/*jajcs.net*
+hosts
+files/*.iso
